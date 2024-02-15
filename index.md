@@ -1,5 +1,3 @@
-## My GitHub Page for IE360
-
 ## Welcome
 
 This page aims to show homeworks and project that I completed in IE360 class. You can check the whole
