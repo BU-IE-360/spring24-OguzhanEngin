@@ -11,4 +11,5 @@ You can check my [study](https://bu-ie-360.github.io/spring24-OguzhanEngin/files
 
 ## Project
 This project is about real life prediction, where the target is two days ahead solar power production of Edikli GES.
-You can check my [project](https://bu-ie-360.github.io/spring24-OguzhanEngin/files/Project/IE360_project.html) here.
+You can check our [report](https://bu-ie-360.github.io/spring24-OguzhanEngin/files/Project/IE360_project.html) here and
+my [code](https://bu-ie-360.github.io/spring24-OguzhanEngin/files/Project/IE360_project.ipynb) here.

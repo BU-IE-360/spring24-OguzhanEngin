@@ -7577,6 +7577,10 @@ a.anchor-link {
 <p>Martín et al. (2010) provide valuable insights into predicting global solar irradiance, which is directly relevant to our project. They emphasize that the accuracy of forecasting models depends heavily on climate conditions and the sequence of data used for training. While we focus on data-driven solar power prediction, their research highlights the importance of including weather variables in our models.</p>
 <p>Similarly, Bacher, Madsen, and Nielsen (2009) emphasize the importance of different input factors depending on forecast timeframes. They stress the significance of solar power observations for short-term forecasts and numerical weather predictions for longer ones. This aligns with our use of numerical weather data, which their research supports.</p>
 <p>Additionally, Sugianto's (2020) analysis clarifies how light intensity affects solar cell performance. They confirm that changes in light intensity directly affect voltage and current generation in solar cells. This reinforces our project's approach of utilizing DSWRF or DLWRF values from weather data to improve forecast accuracy.</p>
+<h2 id="Approach">Approach<a class="anchor-link" href="#Approach">¶</a></h2><p>We first clean the power production and the weather data, also find zero production hours. Then aggregate the weather data and conduct exploratory data analysis to find initial important features. Then we separate the analysis into two, one part is with daily production target (which we think will work better) and the other one is with hourly target. We have two daily models (one is fitted to differenced target and other one is to undifferenced target) and a hourly model.</p>
+<p>In daily analysis, we first analyze the differenced target to find its pattern (AR-MA), and then analyze the weather features with it to transform &amp; select base features with their proper lags. Then, we find 'close month weights' for the May to use these weights later for forecast. These weights for month t is calculated by finding the average of days in months [t-1, t, t+1] in the previous dates. By doing this, we think that it will be better than taking the general average, because this disaggregation method takes the rotation of the Earth around the Sun in a year into account. We later create feature array with base features and their lags to fit an initial Lasso Cross Validation model (base cross validation with random splits). This CV is not credible, however, we think that it will be sufficient for initial feature elimination. Later, we fit a statsmodels model to have a better understanding of the LR model, as well as its estimations are a bit better. Using this model, we analyze the feature significances and do trial tests to eliminate features. After eliminating irrelevant features, we fit another model for the new feature space to find outliers based on current features. After finding the outliers, we fit a final lasso model to select important features without having the effect of outliers. These features are again used in statsmodels LR to select final features and create the final daily LR model. Lastly we check the model residuals and apply Time Series Cross Validation with shifting period of one day to to test the model. Daily differenced target model has same structure, but with less iterations.</p>
+<p>In hourly analysis, we again first analyze the differenced target to find its pattern, and later analyze the weather features to select informative ones as well as their lags. Then we filter the zero production hours and fit a lasso model to remaining data to select base features. We fit statsmodel LR with these features to select the most significant ones. As last step, we check the feature residuals and conduct Time Series Cross Validation with shifting period of one day again.</p>
+<p>In the last part, we compare the forecasting bias of three models to see if any combination of them would increase the prediction performance. We don't have separate result comments since they are all merged into the analysis and are after finding the results.</p>
 </div>
 </div>
 </div>
@@ -9015,95 +9019,6 @@ Name: production, dtype: float64</pre>
 <span class="n">daily_prod_info_df</span> <span class="o">=</span> <span class="n">daily_prod_info_df</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span>
 </pre></div>
 </div>
-</div>
-</div>
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [36]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="n">sm</span><span class="o">.</span><span class="n">tsa</span><span class="o">.</span><span class="n">stattools</span><span class="o">.</span><span class="n">kpss</span><span class="p">(</span><span class="n">daily_prod_info_df</span><span class="p">[</span><span class="s1">'Prod Diff1'</span><span class="p">],</span> <span class="n">nlags</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
-</pre></div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell-outputWrapper">
-<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
-</div>
-<div class="jp-OutputArea jp-Cell-outputArea">
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>&lt;ipython-input-36-eb147a355614&gt;:1: InterpolationWarning: The test statistic is outside of the range of p-values available in the
-look-up table. The actual p-value is greater than the p-value returned.
-
-  sm.tsa.stattools.kpss(daily_prod_info_df['Prod Diff1'], nlags=30)
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child jp-OutputArea-executeResult">
-<div class="jp-OutputPrompt jp-OutputArea-prompt">Out[36]:</div>
-<div class="jp-RenderedText jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/plain" tabindex="0">
-<pre>(0.042257477557796186,
- 0.1,
- 30,
- {'10%': 0.347, '5%': 0.463, '2.5%': 0.574, '1%': 0.739})</pre>
-</div>
-</div>
-</div>
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [37]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="n">sm</span><span class="o">.</span><span class="n">tsa</span><span class="o">.</span><span class="n">stattools</span><span class="o">.</span><span class="n">kpss</span><span class="p">(</span><span class="n">daily_prod_info_df</span><span class="p">[</span><span class="s1">'Prod Diff1'</span><span class="p">],</span> <span class="n">nlags</span><span class="o">=</span><span class="mi">7</span><span class="p">)</span>
-</pre></div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell-outputWrapper">
-<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
-</div>
-<div class="jp-OutputArea jp-Cell-outputArea">
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>&lt;ipython-input-37-ab74f50ef751&gt;:1: InterpolationWarning: The test statistic is outside of the range of p-values available in the
-look-up table. The actual p-value is greater than the p-value returned.
-
-  sm.tsa.stattools.kpss(daily_prod_info_df['Prod Diff1'], nlags=7)
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child jp-OutputArea-executeResult">
-<div class="jp-OutputPrompt jp-OutputArea-prompt">Out[37]:</div>
-<div class="jp-RenderedText jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/plain" tabindex="0">
-<pre>(0.012449488123631863,
- 0.1,
- 7,
- {'10%': 0.347, '5%': 0.463, '2.5%': 0.574, '1%': 0.739})</pre>
-</div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p>It seems like one differencing is enough to convert the target into stationary variable.</p>
 </div>
 </div>
 </div>
@@ -10778,6 +10693,17 @@ look-up table. The actual p-value is greater than the p-value returned.
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<p>The daily model with nondifferenced target is significantly better than naive predictions in the general test period, even though in some days it is worse.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <h4 id="LR-Model-w/Differenced-Daily-Target">LR Model w/Differenced Daily Target<a class="anchor-link" href="#LR-Model-w/Differenced-Daily-Target">¶</a></h4>
 </div>
 </div>
@@ -11593,6 +11519,17 @@ look-up table. The actual p-value is greater than the p-value returned.
 <div class="jp-RenderedImage jp-OutputArea-output" tabindex="0">
 <img alt="No description has been provided for this image" class="" src="data:image/png;base64,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AABDlOrL9Nxzz8nhcKhr16665ZZb5HA45HA41L59e73++us+/d6vv/66z79HoMvOzi71vJT8d/jw4VLb/b//9/+Uk5Nzwe0HDBigjRs3+ituwFq6dKmSk5PVo0cPde/eXe+8884lt09NTVVGRsZVf7/s7Gx16NDhqm8fzK70ubhcTZs29co4wSo7O1tNmzbVs88+W+r6nTt3qmnTppo3b57x+LzmL1TW3+C0tDSvf69Ro0YZP4+BZPDgwVq5cqXn8pQpU9SyZUudPXvWc11MTIyys7N/cax58+Zp1KhRPskplf/nJtzqAIFi3Lhxks7/whs4cKDS09MlibJbjkRFRXmel7K8/fbbfkoTfHJycjRlyhTNmzdPtWrV0qlTpzRgwADdcMMNuuuuuy56my1btujOO+/0c9LgdzXPBbzHbrcrMzNTxcXFqlChgiRp8eLFuuaaayxOFrzK+hsMc23atNHmzZvVsWNHSVJWVpZatGihzZs3q23bttq/f7+qVKmi6667zuKk5R8z1V6wdetW9e3bt9Ss9c/frZXMhG7cuFG9evVScnKyRo4cqfXr1ys5OVnJyckaPHiwTpw4IUl65513lJiYqD59+mjr1q2ecf7973/r3nvvVbdu3dSzZ0/t2bNH69evV9++fT3bzJs3z/MLKNSNGjVKDz/8sJKSkvTpp5+qQ4cOys7O1tmzZzVixAglJSXpwQcfVG5uriSpqKhIY8eOVZ8+fXTXXXfpkUceUUFBgV599VVNmzat1LiLFy+26m5ZIjc3V+fOnVNBQYEkqWrVqpo8ebJuvPFGLVmyRL1791aPHj3UpUsXbdmyRVlZWfr00081ffp0ZWZmXjDDUDIj+vrrr2vIkCHq2rWrPvjgA+3YsUM9e/ZUz5499eabb3q23717twYMGKCUlBS1b99eH374oVwulzp06KC9e/dKkk6fPq34+HgVFhb68ZHxv0s9FyWvcUnauHGjBgwYIOn876CXXnpJffr0UadOnbRmzRpJ50tKv3795HA4Ss2+5uTkaMiQIerdu7cSEhL02muvSZL69++vdevWSZLcbrcSExMv+ulPMKtatapuvvlmffHFF57r1q1bp+joaEnSqlWr5HA41L17dz3yyCM6duyYJKlDhw569dVX1atXL919993avn27JPGaN1DW633//v0aPHiwevbsqX79+mnHjh2SpEWLFsnhcCg5OVnDhg1TYWGh3G63Jk2apM6dO2vAgAE6cOCAZ/xp06apd+/enq8dO3ZMc+fO1VNPPeXZ5vXXX9ff//53P95r72rbtq2+/PJLSed/7iMiItS5c2etXbtWkrRp0ya1a9dOCxYsUM+ePeVwODRmzBjPa27BggXq3LmzUlJStHr1as+4Zb3eg/m5oVR7wfHjx/Wvf/1LaWlpevfdd5Wfn3/J7fft26f3339fU6ZM0YwZMzR+/HjNmzdP0dHR2rFjh7Zt26a0tDTNnz9f7733nn744QdJUn5+vlauXKmZM2cqIyNDCQkJmjVrltq0aaOjR496XmwLFixQcnKyz+93eXPkyJFSSz9KPg632+1asmRJqY9UZ86cKUlasmSJxo4d63nsvvzyS1WsWFFz5szRihUrdPLkSa1Zs0YpKSlatGiR3G63zpw5ow0bNoTcjGCzZs101113qWPHjurVq5emTp0ql8ulhg0bavbs2frb3/6mhQsX6sEHH9Tf//53RUdHq0OHDho2bJhiY2MvOfbZs2e1ePFi9e/fXyNHjtSf/vQnzZ8/v9TMyNy5c/XII48oLS1N//rXv/TSSy8pLCxM99xzjxYuXChJWr58uRISEhQZGenTx8JqZT0XjRo1uuTtzp07pzlz5mj06NGekjxhwgQlJycrPT1drVq18mybkZGhbt26KTU1VYsWLdL777+vEydOKCUlxTNLuGnTJl1//fX61a9+5bs7W04lJSVp2bJlks5PrDRt2lQVK1bU8ePH9eyzz+rNN9/UokWL1KpVKz3//POe29ntdn300Ufq27ev3nrrLUniNe8DI0eO1IgRIzR//nxNmDBBTzzxhCTp1Vdf1T/+8Q/NmzdPDRo00J49e7Rs2TLt2LFDGRkZeu211zx/D/bv3689e/Zo9uzZWrZsma699lotXLhQXbt21fr16z1/6zMyMuRwOCy7r6aaN2+uAwcOqLCwUGvXrlW7du3Url27UqU6KipKqampmj17ttLT01W7dm29++67ysnJ0csvv6xZs2Zpzpw5OnXqVKmxy3q9B+tzQ6n2gtjYWEVEROiaa65RrVq1lJeXd8ntb7jhBlWvXl2SdNddd+mxxx7T888/r9/85jeKiYnR559/rvj4eFWtWlVVqlRRly5dJEnVqlXTK6+8oo8//livvPKKVq1apdOnT8tms6lnz55auHChDh06pOPHj+u2227z+f0ub0qWf5T89+CDD0qSbr311gu2/fzzz5WUlCRJaty4sVq2bClJuuOOO9S/f3/NmjVLEydO1L59+3T69Gk1bNhQDRo00BdffKFly5YpPj4+JP+IPffcc/r000/Vr18/HTp0SL1799bKlSv15ptvau3atXrttdc0f/78C36x/pKS5+jEiRM6cuSI2rVrJ0ml3hyOGjVKhYWFeuutt/Tqq6/q9OnTnm1K1m3Pnz8/ZN5QXuy5WL58+SVvU/Lm5qabbpLT6ZRU+mehR48eqlixoiRpyJAhuvbaa/Xuu+9q4sSJOnfunM6cOaOkpCRlZWXp9OnTIfV4/1yHDh302WefyeVyacmSJZ7HsHLlyrr11ls95bhPnz7asGGD53Y/fw54zXvfqVOntH37do0ePVoOh0NPPfWUTp8+rdzcXLVv3179+vXTSy+9pM6dO+vmm2/W559/rsTERFWsWFHXXHON4uLiJEmNGjXSyJEjNXfuXE2ePFlfffWVTp8+rapVqyo+Pl4rVqzQpk2b1LBhw4B+Y1mhQgXddttt2rZtm9auXauYmBg1bNhQBQUFysvL05dffqmqVatq//796t27txwOhz755BPt2bNHX375pVq2bKk6deooPDxc3bt3LzX2z1/vwf7csKbaC8LD/+9htNlscrvdnv+XOHfunOfflSpV8vx70KBBat++vVatWqWpU6dq69atioyMLHXb8PBwnT17VocPH9aAAQN0//33Ky4uTnXq1NHOnTslST179tSDDz6oiIiIgH7H7As/fbxL/Pz5KXkOP/nkE02fPl0DBw5UcnKycnNzPdulpKQoIyNDhw4d0uOPP+6f8OXI6tWrdfr0aXXt2lUpKSlKSUlRamqqZs2apb/85S/q0aOH7rjjDjVt2lSzZs264PY/fcx/+vMg/d9z9PPnpWS9qiQNHz5cNWrUUPv27dW1a1dPqbjuuutUv359LV++PGTeUJb1XHz00UeS5HkMi4qKSt2u5I2gzWYrdX3J9jabTWFh5+daJk+erP/+97/q1q2bOnbsqKysLLndblWpUkVxcXFatmyZNmzYELJLzapWrapmzZpp8+bN2rBhg5566iktXrxYLper1HZut7vU8/Dz54DXvLmfv95dLpciIiJKrbv+4YcfZLfbNXbsWO3atUtr1qzRiBEj9Nhjj5X592D79u166qmnNGjQIHXu3FlhYWGl/h789a9/1XXXXRcUb2ratGmjLVu2aOvWrZo6daqk88tCPvnkE9WqVUtut1tJSUkaO3aspPNvXIqLi7V+/fqLPnYlfv56D/bnhplqH6lVq5b+85//yO1267///a++/fbbi25377336tSpUxo0aJAGDRqkHTt2qG3btlq1apVOnjypwsJCrVixQpK0bds2NWrUSIMGDdJvf/tbrVy5UsXFxZKkBg0aqF69epo9ezal+jK0bdtWixYtksvl0sGDB7VlyxZJ0vr165WUlKSUlBTVqFFDGzdu9DzGXbp00fr163Xs2LGQ/CNWqVIlvfLKK571i263Wzt37lRERIRsNpsefvhhtW7dWitWrPA8ZhUqVPD822636/vvv5ekUnua/1StWrVUv359z7q8nx45ZN26dRo2bJg6duyozz77TJI8Y6ekpOiFF15Qjx49vH/Hy6Gynoubb75ZtWrV8jzOn3zyyS+OFR0dXWopQck6yXXr1mnIkCFKSkrS3r17lZOT4ymMKSkpmjZtmmJjY0PyE5sSSUlJeuWVV3TLLbd4/tgXFBTo66+/9jw3c+bMUevWrcscg9e8mYu93qtXr67GjRt7itu6det03333qaioSImJiapVq5aGDh0qh8OhnTt3qm3btlqyZInOnj2rvLw8ZWZmSpK++OIL3XnnnerXr58aN26s1atXex7/3/3ud/rhhx+0ceNGzw5+gaxt27ZKT09XkyZNPK/ldu3a6b333lO7du08v9uPHz8ut9ut8ePH6/3339ftt9+ur776yvP74Zf2NQr254aZah+Jjo5WWlqaunTpohtuuEG33377Rbd78sknNWrUKIWHh6tKlSp64YUX1LhxYz3wwAPq1auXatSoofr160s6/wL/8MMP1bVrV7ndbt1xxx367rvvPGN17dpVy5cvD+iPofylf//++u6775SUlKQGDRqoSZMmks6/yfnTn/6kjz/+WBUrVlSrVq08fxwrVaqkFi1aeLYNNW3atNFjjz2mhx9+2DPTHBsbqzfffFOjRo1SUlKSbDabYmJitHnzZknnfw7+8pe/qHr16urXr5+GDx+u7t27q02bNqpbt+5Fv8/UqVM1evRovfrqq2rRooXn+scff1z9+/dXZGSkmjVrpgYNGig7O1uNGjVSYmKinnnmmZB5Q1nWc/Hoo4+qVatWmjBhgt544w3FxMT84ljPPvusRowYoTlz5uiWW25R1apVJUlDhw7Vn//8Z1WqVEn16tXTLbfcouzsbF1//fW6/fbbZbPZlJKS4tP7Wd61b99eTz/9tP74xz96rqtTp46ef/55PfbYYzp37pzq16+viRMnXnIcXvNXb9iwYRd9vU+dOlXjx4/XO++8o4oVK2ratGmqWLGihg0bpt///veKjIxU7dq1NXnyZNWuXVvbtm1Tt27dVKdOHf3617+WdP5v6mOPPeZZ0lDyM1CiU6dOcjqdioiI8O+d9oEmTZrI6XSqf//+nuvatGmj4cOHKzo6Ws2aNdNjjz2mBx54QC6XSzfffLMeeughRUZGauzYsRo0aJAqV66sG2+88Re/VzA/Nzb3T+fVEbCKior05z//WV26dFFiYqLVcYKO2+3WqVOn1KdPH/3zn/8ssxDC/9xutz777DN9+OGH+tvf/mZ1nKDndru1e/dujRw5UgsWLLA6TkjiNW8tt9utc+fOafDgwRozZoyaN29udST8L6ufG5Z/BAG3263Y2FjZbLag+BiqPNq2bZs6dOig3r17U6jLmRdffFETJkzQyJEjrY4SEt5//30NGTJEzzzzjNVRQhaveWsdPXpU7dq102233UahLmesfm6YqQYAAAAMMVMNAAAAGKJUAwAAAIYo1QAAAIAhSjUAhIClS5dqwIABVscAgKBFqQYAAAAMUaoBIEi99tpr6tixo3r16uU5M+vevXs1ePBg9e7dW+3bt9cf/vAHFRYWauHCherbt6/ntocOHVJMTIzOnj1rVXwACCiUagAIQitXrtTy5cu1YMECzZ49W/n5+ZKk1NRU3XPPPUpNTdXy5cuVnZ2t1atXq0uXLjpw4IDnLK1z585Vz549g+JscQDgD5RqAAhC69evV6dOnVStWjWFh4d7Tik+YsQIXXPNNXr77bc1fvx4HTlyRKdPn1ZERITuvfdezZ07V8XFxZo/f7569+5t8b0AgMARbnUAAIBv/PTcXhUqVJAkPfnkkyouLlZSUpISEhJ0+PBhz3Z9+/ZVr169dOedd+qmm25Sw4YNLckNAIGImWoACEJxcXFaunSpfvzxR7lcLqWnp0uS1q5dq0cffVRdu3aVJH399dcqLi6WJF177bVq0aKFXnzxRfXr18+y7AAQiJipBoAgFB8fr2+//VYpKSmqUaOGmjVrptzcXD3xxBN69NFHVaVKFVWrVk133HGHDhw44LldcnKyJkyYoPj4eAvTA0Dgsbl/+vkgACBkuVwuPf/886pfv74eeughq+MAQEBh+QcAQPn5+WrdurUOHz6sgQMHWh0HAAIOM9UAAACAIWaqAQAAAEOUagAAAMAQpRoAAAAwRKkGAAAADFGqAQAAAEOUagAAAMDQ/weNItg5DdD5kgAAAABJRU5ErkJggg=="/>
 </div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<p>Worse (general daily mean and variance) than the non-differenced target, it is expected since power production is mostly about weather condition and differencing assumes that the weather conditions were same 3 days ago.</p>
 </div>
 </div>
 </div>
@@ -12553,6 +12490,17 @@ look-up table. The actual p-value is greater than the p-value returned.
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<p>Worse (general daily mean and variance) than the daily models as we expected.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <h2 id="Model-Comparison">Model Comparison<a class="anchor-link" href="#Model-Comparison">¶</a></h2>
 </div>
 </div>
@@ -12628,7 +12576,7 @@ look-up table. The actual p-value is greater than the p-value returned.
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p>Daily LR model seems best in general, which alligns with WMAPE means. However, we think that it would be beneficial to ensemble Daily LR and Daily Diff LR models. Since they generally have opposite forecasting biases, their combination might improve the forecasts a bit.</p>
+<p>Daily LR model seems best in general(mean error and variance), which alligns with WMAPE means. However, we think that it would be beneficial to ensemble Daily LR and Daily Diff LR models. Since they generally have opposite forecasting biases, their combination might improve the forecasts a bit.</p>
 </div>
 </div>
 </div>
@@ -12639,7 +12587,7 @@ look-up table. The actual p-value is greater than the p-value returned.
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="Conclusion">Conclusion<a class="anchor-link" href="#Conclusion">¶</a></h2><p>In this project, our objective was to forecast the solar power production values of Edikli GES for the upcoming 24 to 48 hours, utilizing both weather and production data which was available starting from day before. To ensure the accuracy of our predictions during the competition phase, held from the 13th to the 26th of May, we undertook the task of constructing various time series models while only considering the models and methodologies taught in the class.</p>
+<h2 id="Conclusion-&amp;-Future-Work">Conclusion &amp; Future Work<a class="anchor-link" href="#Conclusion-&amp;-Future-Work">¶</a></h2><p>In this project, our objective was to forecast the solar power production values of Edikli GES for the upcoming 24 to 48 hours, utilizing both weather and production data which was available starting from day before. To ensure the accuracy of our predictions during the competition phase, held from the 13th to the 26th of May, we undertook the task of constructing various time series models while only considering the models and methodologies taught in the class.</p>
 <p>Following a comparison of these models with time series cross validation, we determined that the Linear Regression model with daily target demonstrated the most promising results. Consequently, we based our predictions on this model throughout the competition phase, to increase reliability in our approach.</p>
 <p>Better disaggregation methods such as clustering days based on hourly features and disaggregating based on these clusters might improve the performance of the daily models. Another modelling improvement can be ensembling two daily models, which might potentially lower the errors since their forecast biases have different signs in different days. Also, if the inside mechanisms of the power plant (such as breakdown times, exact locations of the cells, ...) can be known, then some modifications can be made to make the models learn the stucture better.</p>
 <h2 id="References">References<a class="anchor-link" href="#References">¶</a></h2><ul>
@@ -12650,6 +12598,19 @@ look-up table. The actual p-value is greater than the p-value returned.
 <li><p>Sugianto, A. (2020). Comparative analysis of solar cell efficiency between monocrystalline and polycrystalline. International Journal of Renewable Energy Research, 10(2), 437-442.</p>
 </li>
 </ul>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h2 id="Contributors:">Contributors:<a class="anchor-link" href="#Contributors:">¶</a></h2><p>Oğuzhan Engin - 2019402009</p>
+<p>Serhat Ekli - 2020402051</p>
+<p>Halil İbrahim Türkmen - 2016402006</p>
 </div>
 </div>
 </div>
