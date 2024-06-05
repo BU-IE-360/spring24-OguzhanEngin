@@ -9,6 +9,6 @@ This page aims to show homeworks and project that I completed in IE360 class. Yo
 This homework aims to evaluate data visualization and interpretation skills, as well as modelling approach.
 You can check my [study](https://bu-ie-360.github.io/spring24-OguzhanEngin/files/HW_1/HW_1.html) here.
 
-### HW2
-
 ## Project
+This project is about real life prediction, where the target is two days ahead solar power production of Edikli GES.
+You can check my [project](https://bu-ie-360.github.io/spring24-OguzhanEngin/files/Project/IE360_project.html) here.
